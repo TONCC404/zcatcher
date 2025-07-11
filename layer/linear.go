@@ -20,7 +20,7 @@ func NewLinear(in, out int) *Linear {
 func (l *Linear) Forward(x *tensor.Tensor) *tensor.Tensor {
 	l.X = x
 	out := tensor.MatMul(x, l.W)
-	// 简略：没有实现 Add Bias 的广播
+	out = tensor.AddBias(out, l.B)
 	return out
 }
 

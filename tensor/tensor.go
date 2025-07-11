@@ -63,3 +63,20 @@ func Sum(t *Tensor, axis int) *Tensor {
 		panic("Invalid axis")
 	}
 }
+
+func AddBias(mat *Tensor, bias *Tensor) *Tensor {
+	if len(mat.Shape) != 2 || len(bias.Shape) != 2 {
+		panic("AddBias only supports 2D tensors")
+	}
+	rows, cols := mat.Shape[0], mat.Shape[1]
+	if bias.Shape[1] != cols {
+		panic("Bias shape mismatch")
+	}
+	out := make([]float32, len(mat.Data))
+	for i := 0; i < rows; i++ {
+		for j := 0; j < cols; j++ {
+			out[i*cols+j] = mat.Data[i*cols+j] + bias.Data[j]
+		}
+	}
+	return &Tensor{Data: out, Shape: mat.Shape}
+}

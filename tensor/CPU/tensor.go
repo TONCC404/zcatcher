@@ -7,7 +7,7 @@ type Tensor struct {
 	Shape []int
 }
 
-func New(data []float32, shape []int) *Tensor {
+func NewTensor(data []float32, shape []int) *Tensor {
 	return &Tensor{Data: data, Shape: shape}
 }
 

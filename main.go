@@ -9,11 +9,11 @@ import (
 )
 
 func main() {
-	x := CPU.New([]float32{
+	x := CPU.NewTensor([]float32{
 		1, 2,
 		3, 4,
 	}, []int{2, 2})
-	y := CPU.New([]float32{
+	y := CPU.NewTensor([]float32{
 		0, 1,
 		1, 0,
 	}, []int{2, 2})

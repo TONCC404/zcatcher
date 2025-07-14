@@ -5,25 +5,40 @@ import (
 )
 
 type ReLU struct {
-	mask []bool
-	x    *CPU.Tensor
+	mask    []bool
+	x       *CPU.Tensor
+	inplace bool
 }
 
-func NewReLU() *ReLU {
-	return &ReLU{}
+func NewReLU(inplace ...bool) *ReLU {
+	useInplace := false
+	if len(inplace) > 0 {
+		useInplace = inplace[0]
+	}
+	return &ReLU{inplace: useInplace}
 }
 
 func (r *ReLU) Forward(x *CPU.Tensor) *CPU.Tensor {
 	r.x = x
-	out := make([]float32, len(x.Data))
-	r.mask = make([]bool, len(x.Data))
-	for i, v := range x.Data {
-		if v > 0 {
-			out[i] = v
-			r.mask[i] = true
+	//inplace for optimize memory usage and speed
+	if r.inplace {
+		for i := range x.Data {
+			if x.Data[i] < 0 {
+				x.Data[i] = 0
+			}
 		}
+		return x
+	} else {
+		out := make([]float32, len(x.Data))
+		r.mask = make([]bool, len(x.Data))
+		for i, v := range x.Data {
+			if v > 0 {
+				out[i] = v
+				r.mask[i] = true
+			}
+		}
+		return &CPU.Tensor{Data: out, Shape: x.Shape}
 	}
-	return &CPU.Tensor{Data: out, Shape: x.Shape}
 }
 
 func (r *ReLU) Backward(dout *CPU.Tensor) *CPU.Tensor {

@@ -1,5 +1,7 @@
 package tensor
 
+//import "github.com/matrixorigin/simdcpu"
+
 type Tensor struct {
 	Data  []float32
 	Shape []int
@@ -80,3 +82,22 @@ func AddBias(mat *Tensor, bias *Tensor) *Tensor {
 	}
 	return &Tensor{Data: out, Shape: mat.Shape}
 }
+
+// todo: SIMDCPU for Data Level Parallelism Optimization
+// for SIMD optimize, CPU based
+//func AddBiasWithSIMD(mat *Tensor, bias *Tensor) *Tensor {
+//	if len(mat.Shape) != 2 || len(bias.Shape) != 2 {
+//		panic("AddBias only supports 2D tensors")
+//	}
+//	rows, cols := mat.Shape[0], mat.Shape[1]
+//	if bias.Shape[1] != cols {
+//		panic("Bias shape mismatch")
+//	}
+//	out := make([]float32, len(mat.Data))
+//	for i := 0; i < rows; i++ {
+//		slice := mat.Data[i*cols : (i+1)*cols]
+//		outSlice := simdcpu.AddFloat32(slice, bias.Data) // SIMD 加速逐行加法
+//		copy(out[i*cols:(i+1)*cols], outSlice)
+//	}
+//	return &Tensor{Data: out, Shape: mat.Shape}
+//}

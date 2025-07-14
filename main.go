@@ -5,15 +5,15 @@ import (
 	"zcatcher/layer"
 	"zcatcher/model"
 	"zcatcher/optimizer"
-	"zcatcher/tensor"
+	"zcatcher/tensor/CPU"
 )
 
 func main() {
-	x := tensor.New([]float32{
+	x := CPU.New([]float32{
 		1, 2,
 		3, 4,
 	}, []int{2, 2})
-	y := tensor.New([]float32{
+	y := CPU.New([]float32{
 		0, 1,
 		1, 0,
 	}, []int{2, 2})

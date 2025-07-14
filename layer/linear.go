@@ -1,40 +1,42 @@
 package layer
 
-import "zcatcher/tensor"
+import (
+	"zcatcher/tensor/CPU"
+)
 
 type Linear struct {
-	W, B   *tensor.Tensor
-	dW, dB *tensor.Tensor
-	X      *tensor.Tensor
+	W, B   *CPU.Tensor
+	dW, dB *CPU.Tensor
+	X      *CPU.Tensor
 }
 
 func NewLinear(in, out int) *Linear {
 	w := make([]float32, in*out)
 	b := make([]float32, out)
 	return &Linear{
-		W: &tensor.Tensor{Data: w, Shape: []int{in, out}},
-		B: &tensor.Tensor{Data: b, Shape: []int{1, out}},
+		W: &CPU.Tensor{Data: w, Shape: []int{in, out}},
+		B: &CPU.Tensor{Data: b, Shape: []int{1, out}},
 	}
 }
 
-func (l *Linear) Forward(x *tensor.Tensor) *tensor.Tensor {
+func (l *Linear) Forward(x *CPU.Tensor) *CPU.Tensor {
 	l.X = x
-	out := tensor.MatMul(x, l.W)
-	out = tensor.AddBias(out, l.B)
+	out := CPU.MatMul(x, l.W)
+	out = CPU.AddBias(out, l.B)
 	return out
 }
 
-func (l *Linear) Backward(dout *tensor.Tensor) *tensor.Tensor {
-	l.dW = tensor.MatMul(tensor.Transpose(l.X), dout)
-	l.dB = tensor.Sum(dout, 0)
-	dx := tensor.MatMul(dout, tensor.Transpose(l.W))
+func (l *Linear) Backward(dout *CPU.Tensor) *CPU.Tensor {
+	l.dW = CPU.MatMul(CPU.Transpose(l.X), dout)
+	l.dB = CPU.Sum(dout, 0)
+	dx := CPU.MatMul(dout, CPU.Transpose(l.W))
 	return dx
 }
 
-func (l *Linear) Params() []*tensor.Tensor {
-	return []*tensor.Tensor{l.W, l.B}
+func (l *Linear) Params() []*CPU.Tensor {
+	return []*CPU.Tensor{l.W, l.B}
 }
 
-func (l *Linear) Grads() []*tensor.Tensor {
-	return []*tensor.Tensor{l.dW, l.dB}
+func (l *Linear) Grads() []*CPU.Tensor {
+	return []*CPU.Tensor{l.dW, l.dB}
 }

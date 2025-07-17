@@ -1,10 +1,10 @@
 package layer
 
-import "zcatcher/tensor/CPU"
+import "zcatcher/tensor"
 
 type Layer interface {
-	Forward(x *CPU.Tensor) *CPU.Tensor
-	Backward(dout *CPU.Tensor) *CPU.Tensor
-	Params() []*CPU.Tensor
-	Grads() []*CPU.Tensor
+	Forward(x *tensor.Tensor) *tensor.Tensor
+	Backward(dout *tensor.Tensor) *tensor.Tensor
+	Params() []*tensor.Tensor
+	Grads() []*tensor.Tensor
 }

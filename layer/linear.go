@@ -2,45 +2,47 @@ package layer
 
 import (
 	"errors"
-	"zcatcher/tensor/CPU"
+	"zcatcher/tensor"
 )
 
 // ----------------------- Layer -----------------------
 type Linear struct {
-	W, B   *CPU.Tensor
-	dW, dB *CPU.Tensor
-	X      *CPU.Tensor
+	W, B    *tensor.Tensor
+	dW, dB  *tensor.Tensor
+	X       *tensor.Tensor
+	Backend tensor.Backend
 }
 
-func NewLinear(in, out int) *Linear {
+func NewLinear(in, out int, backend tensor.Backend) *Linear {
 	w := make([]float32, in*out)
 	b := make([]float32, out)
 	return &Linear{
-		W: &CPU.Tensor{Data: w, Shape: []int{in, out}},
-		B: &CPU.Tensor{Data: b, Shape: []int{1, out}},
+		W:       &tensor.Tensor{Data: w, Shape: []int{in, out}, Device: backend.Device()},
+		B:       &tensor.Tensor{Data: b, Shape: []int{1, out}, Device: backend.Device()},
+		Backend: backend,
 	}
 }
 
-func (l *Linear) Forward(x *CPU.Tensor) *CPU.Tensor {
+func (l *Linear) Forward(x *tensor.Tensor) *tensor.Tensor {
 	l.X = x
-	out := CPU.MatMul(x, l.W)
-	out = CPU.AddBias(out, l.B)
+	out := l.Backend.MatMul(x, l.W)
+	out = l.Backend.AddBias(out, l.B)
 	return out
 }
 
-func (l *Linear) Backward(dout *CPU.Tensor) *CPU.Tensor {
-	l.dW = CPU.MatMul(CPU.Transpose(l.X), dout)
-	l.dB = CPU.Sum(dout, 0)
-	dx := CPU.MatMul(dout, CPU.Transpose(l.W))
+func (l *Linear) Backward(dout *tensor.Tensor) *tensor.Tensor {
+	l.dW = l.Backend.MatMul(l.Backend.Transpose(l.X), dout)
+	l.dB = l.Backend.Sum(dout, 0)
+	dx := l.Backend.MatMul(dout, l.Backend.Transpose(l.W))
 	return dx
 }
 
-func (l *Linear) Params() []*CPU.Tensor {
-	return []*CPU.Tensor{l.W, l.B}
+func (l *Linear) Params() []*tensor.Tensor {
+	return []*tensor.Tensor{l.W, l.B}
 }
 
-func (l *Linear) Grads() []*CPU.Tensor {
-	return []*CPU.Tensor{l.dW, l.dB}
+func (l *Linear) Grads() []*tensor.Tensor {
+	return []*tensor.Tensor{l.dW, l.dB}
 }
 
 // ----------------------- Bilinear Layer -----------------------
@@ -52,10 +54,11 @@ func (l *Linear) Grads() []*CPU.Tensor {
 // 其中 W 是三维张量 (in1, in2, out)，或者存成 (in1*out, in2) 重塑。
 
 type Bilinear struct {
-	W, B          *CPU.Tensor
-	dW, dB        *CPU.Tensor
-	X1, X2        *CPU.Tensor
+	W, B          *tensor.Tensor
+	dW, dB        *tensor.Tensor
+	X1, X2        *tensor.Tensor
 	in1, in2, out int
+	Backend       tensor.Backend
 }
 
 func NewBilinear(in1, in2, out int) *Bilinear {
@@ -63,16 +66,17 @@ func NewBilinear(in1, in2, out int) *Bilinear {
 	w := make([]float32, in1*in2*out)
 	b := make([]float32, out)
 	return &Bilinear{
-		W:   &CPU.Tensor{Data: w, Shape: []int{in1, in2, out}},
-		B:   &CPU.Tensor{Data: b, Shape: []int{1, out}},
+		W:   &tensor.Tensor{Data: w, Shape: []int{in1, in2, out}},
+		B:   &tensor.Tensor{Data: b, Shape: []int{1, out}},
 		in1: in1,
 		in2: in2,
 		out: out,
 	}
 }
 
+// 待优化， Bilinear 矩阵批操作，只有CPU运行
 // Forward 计算 y_i = x1^T * W[:,:,i] * x2 + b_i
-func (b *Bilinear) Forward(x1, x2 *CPU.Tensor) (*CPU.Tensor, error) {
+func (b *Bilinear) Forward(x1, x2 *tensor.Tensor) (*tensor.Tensor, error) {
 	if len(x1.Shape) != 2 || len(x2.Shape) != 2 {
 		return nil, errors.New("Bilinear Forward requires 2D tensors")
 	}
@@ -102,11 +106,12 @@ func (b *Bilinear) Forward(x1, x2 *CPU.Tensor) (*CPU.Tensor, error) {
 			outData[n*b.out+o] = sum
 		}
 	}
-	return &CPU.Tensor{Data: outData, Shape: []int{N, b.out}}, nil
+	return &tensor.Tensor{Data: outData, Shape: []int{N, b.out}}, nil
 }
 
+// 待优化， Bilinear 矩阵批操作，只有CPU运行
 // Backward 计算梯度，暂时只计算 dW, dB，返回对 x1 和 x2 的梯度
-func (b *Bilinear) Backward(dout *CPU.Tensor) (*CPU.Tensor, *CPU.Tensor, error) {
+func (b *Bilinear) Backward(dout *tensor.Tensor) (*tensor.Tensor, *tensor.Tensor, error) {
 	if len(dout.Shape) != 2 || dout.Shape[1] != b.out {
 		return nil, nil, errors.New("Bilinear Backward dout shape mismatch")
 	}
@@ -114,14 +119,14 @@ func (b *Bilinear) Backward(dout *CPU.Tensor) (*CPU.Tensor, *CPU.Tensor, error) 
 
 	// 初始化梯度
 	if b.dW == nil {
-		b.dW = &CPU.Tensor{Data: make([]float32, b.in1*b.in2*b.out), Shape: []int{b.in1, b.in2, b.out}}
+		b.dW = &tensor.Tensor{Data: make([]float32, b.in1*b.in2*b.out), Shape: []int{b.in1, b.in2, b.out}}
 	} else {
 		for i := range b.dW.Data {
 			b.dW.Data[i] = 0
 		}
 	}
 	if b.dB == nil {
-		b.dB = &CPU.Tensor{Data: make([]float32, b.out), Shape: []int{1, b.out}}
+		b.dB = &tensor.Tensor{Data: make([]float32, b.out), Shape: []int{1, b.out}}
 	} else {
 		for i := range b.dB.Data {
 			b.dB.Data[i] = 0
@@ -154,30 +159,31 @@ func (b *Bilinear) Backward(dout *CPU.Tensor) (*CPU.Tensor, *CPU.Tensor, error) 
 		}
 	}
 
-	dx1 := &CPU.Tensor{Data: dx1Data, Shape: []int{N, b.in1}}
-	dx2 := &CPU.Tensor{Data: dx2Data, Shape: []int{N, b.in2}}
+	dx1 := &tensor.Tensor{Data: dx1Data, Shape: []int{N, b.in1}}
+	dx2 := &tensor.Tensor{Data: dx2Data, Shape: []int{N, b.in2}}
 
 	return dx1, dx2, nil
 }
 
-func (b *Bilinear) Params() []*CPU.Tensor {
-	return []*CPU.Tensor{b.W, b.B}
+func (b *Bilinear) Params() []*tensor.Tensor {
+	return []*tensor.Tensor{b.W, b.B}
 }
 
-func (b *Bilinear) Grads() []*CPU.Tensor {
-	return []*CPU.Tensor{b.dW, b.dB}
+func (b *Bilinear) Grads() []*tensor.Tensor {
+	return []*tensor.Tensor{b.dW, b.dB}
 }
 
 // ----------------------- LazyLinear Layer -----------------------
 // LazyLinear 类似 Linear，但是初始化时不知道输入维度，直到第一次Forward时才确定W和B的Shape
 
 type LazyLinear struct {
-	W, B   *CPU.Tensor
-	dW, dB *CPU.Tensor
-	X      *CPU.Tensor
-	out    int
-	in     int
-	init   bool
+	W, B    *tensor.Tensor
+	dW, dB  *tensor.Tensor
+	X       *tensor.Tensor
+	out     int
+	in      int
+	init    bool
+	Backend tensor.Backend
 }
 
 func NewLazyLinear(out int) *LazyLinear {
@@ -187,42 +193,42 @@ func NewLazyLinear(out int) *LazyLinear {
 	}
 }
 
-func (l *LazyLinear) Forward(x *CPU.Tensor) *CPU.Tensor {
+func (l *LazyLinear) Forward(x *tensor.Tensor) *tensor.Tensor {
 	if !l.init {
 		// 第一次调用，根据输入x的Shape初始化参数
 		l.in = x.Shape[1]
 		wData := make([]float32, l.in*l.out)
 		bData := make([]float32, l.out)
-		l.W = &CPU.Tensor{Data: wData, Shape: []int{l.in, l.out}}
-		l.B = &CPU.Tensor{Data: bData, Shape: []int{1, l.out}}
+		l.W = &tensor.Tensor{Data: wData, Shape: []int{l.in, l.out}}
+		l.B = &tensor.Tensor{Data: bData, Shape: []int{1, l.out}}
 		l.init = true
 	}
 	l.X = x
-	out := CPU.MatMul(x, l.W)
-	out = CPU.AddBias(out, l.B)
+	out := l.Backend.MatMul(x, l.W)
+	out = l.Backend.AddBias(out, l.B)
 	return out
 }
 
-func (l *LazyLinear) Backward(dout *CPU.Tensor) *CPU.Tensor {
+func (l *LazyLinear) Backward(dout *tensor.Tensor) *tensor.Tensor {
 	if !l.init {
 		panic("LazyLinear: backward called before forward")
 	}
-	l.dW = CPU.MatMul(CPU.Transpose(l.X), dout)
-	l.dB = CPU.Sum(dout, 0)
-	dx := CPU.MatMul(dout, CPU.Transpose(l.W))
+	l.dW = l.Backend.MatMul(l.Backend.Transpose(l.X), dout)
+	l.dB = l.Backend.Sum(dout, 0)
+	dx := l.Backend.MatMul(dout, l.Backend.Transpose(l.W))
 	return dx
 }
 
-func (l *LazyLinear) Params() []*CPU.Tensor {
+func (l *LazyLinear) Params() []*tensor.Tensor {
 	if !l.init {
 		return nil
 	}
-	return []*CPU.Tensor{l.W, l.B}
+	return []*tensor.Tensor{l.W, l.B}
 }
 
-func (l *LazyLinear) Grads() []*CPU.Tensor {
+func (l *LazyLinear) Grads() []*tensor.Tensor {
 	if !l.init {
 		return nil
 	}
-	return []*CPU.Tensor{l.dW, l.dB}
+	return []*tensor.Tensor{l.dW, l.dB}
 }

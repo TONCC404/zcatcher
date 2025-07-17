@@ -1,8 +1,6 @@
 package layer
 
-import (
-	"zcatcher/tensor/CPU"
-)
+import "zcatcher/tensor/CPU"
 
 type Layer interface {
 	Forward(x *CPU.Tensor) *CPU.Tensor

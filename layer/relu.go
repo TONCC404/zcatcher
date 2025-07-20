@@ -2,7 +2,6 @@ package layer
 
 import (
 	"zcatcher/tensor"
-	"zcatcher/tensor/CPU"
 )
 
 type ReLU struct {
@@ -60,10 +59,10 @@ func (r *ReLU) Backward(dout *tensor.Tensor) *tensor.Tensor {
 	return &tensor.Tensor{Data: dx, Shape: dout.Shape}
 }
 
-func (r *ReLU) Params() []*CPU.Tensor {
+func (r *ReLU) Params() []*tensor.Tensor {
 	return nil
 }
 
-func (r *ReLU) Grads() []*CPU.Tensor {
+func (r *ReLU) Grads() []*tensor.Tensor {
 	return nil
 }

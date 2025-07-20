@@ -6,6 +6,10 @@ import (
 
 type CPUBackend struct{}
 
+func NewCPUBackend() *CPUBackend {
+	return &CPUBackend{}
+}
+
 func (CPUBackend) Device() string { return "cpu" }
 
 func (CPUBackend) MatMul(a, b *tensor.Tensor) *tensor.Tensor {

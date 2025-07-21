@@ -10,6 +10,7 @@ void launchSigmoid(const float* input, float* output, int n, int inplace);
 void launchTanh(const float* input, float* output, int n, int inplace);
 void launchLeakyReLU(const float* input, float* output, int n, float alpha, int inplace);
 void launchELU(const float* input, float* output, int n, float alpha, int inplace);
+void launchReLU(const float* input, float* output, int n, int inplace);
 */
 import "C"
 import (
@@ -46,5 +47,13 @@ func (GPUBackend) ELU(t *tensor.Tensor, alpha float32) *tensor.Tensor {
 	inPtr := (*C.float)(unsafe.Pointer(&t.Data[0]))
 	outPtr := (*C.float)(unsafe.Pointer(&out[0]))
 	C.launchELU(inPtr, outPtr, C.int(len(t.Data)), C.float(alpha), C.int(0))
+	return &tensor.Tensor{Data: out, Shape: t.Shape, Device: "gpu"}
+}
+
+func (GPUBackend) ReLU(t *tensor.Tensor) *tensor.Tensor {
+	out := make([]float32, len(t.Data))
+	inPtr := (*C.float)(unsafe.Pointer(&t.Data[0]))
+	outPtr := (*C.float)(unsafe.Pointer(&out[0]))
+	C.launchReLU(inPtr, outPtr, C.int(len(t.Data)), C.int(0))
 	return &tensor.Tensor{Data: out, Shape: t.Shape, Device: "gpu"}
 }

@@ -1,6 +1,7 @@
 package layer
 
 import (
+	"zcatcher/backend/gpu"
 	"zcatcher/tensor"
 )
 
@@ -45,7 +46,8 @@ func (r *ReLU) Forward(x *tensor.Tensor) *tensor.Tensor {
 		}
 	} else {
 		// GPU 版本：调用后端
-		return r.backend.ReLU(x, r.inplace)
+		backend := gpu.GPUBackend{}
+		return backend.ReLU(x)
 	}
 }
 

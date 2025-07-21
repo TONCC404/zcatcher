@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"zcatcher/backend"
+	"zcatcher/backend/gpu"
 	"zcatcher/layer"
 	"zcatcher/model"
 	"zcatcher/optimizer"
@@ -18,7 +18,7 @@ func main() {
 		0, 1,
 		1, 0,
 	}, []int{2, 2})
-	backend := backend.NewGPUBackend()
+	backend := gpu.NewGPUBackend()
 
 	net := model.NewSequential(
 		layer.NewLinear(2, 3, backend),

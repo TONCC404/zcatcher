@@ -1,8 +1,14 @@
 package backend
 
-// #cgo LDFLAGS: -lcublas -lcudart
+// #cgo LDFLAGS: -L./cuda -ltensor_ops -lcublas -lcudart
+// #cgo CFLAGS: -I/usr/local/cuda/include
 // #include <cuda_runtime.h>
 // #include <cublas_v2.h>
+// void launchTranspose2D(const float* input, float* output, int rows, int cols);
+// void launchSumAxis0(const float* input, float* output, int rows, int cols);
+// void launchSumAxis1(const float* input, float* output, int rows, int cols);
+// void launchMatMul2D(const float* A, const float* B, float* C, int m, int k, int n);
+// void launchAddBias2D(const float* mat, const float* bias, float* out, int rows, int cols);
 import "C"
 
 import (
@@ -19,97 +25,58 @@ func NewGPUBackend() *GPUBackend {
 }
 
 func (GPUBackend) MatMul(a, b *tensor.Tensor) *tensor.Tensor {
-	// 创建 cuBLAS handle
-	var handle C.cublasHandle_t
-	C.cublasCreate_v2(&handle)
+	m, k := a.Shape[0], a.Shape[1]
+	n := b.Shape[1]
+	out := make([]float32, m*n)
 
-	// 分配 GPU memory 并复制数据（略去错误处理）
-	var dA, dB, dC unsafe.Pointer
-	sizeA := len(a.Data) * 4
-	sizeB := len(b.Data) * 4
-	sizeC := a.Shape[0] * b.Shape[1] * 4
+	aPtr := (*C.float)(unsafe.Pointer(&a.Data[0]))
+	bPtr := (*C.float)(unsafe.Pointer(&b.Data[0]))
+	cPtr := (*C.float)(unsafe.Pointer(&out[0]))
 
-	C.cudaMalloc(&dA, C.size_t(sizeA))
-	C.cudaMemcpy(dA, unsafe.Pointer(&a.Data[0]), C.size_t(sizeA), C.cudaMemcpyHostToDevice)
-	C.cudaMalloc(&dB, C.size_t(sizeB))
-	C.cudaMemcpy(dB, unsafe.Pointer(&b.Data[0]), C.size_t(sizeB), C.cudaMemcpyHostToDevice)
-	C.cudaMalloc(&dC, C.size_t(sizeC))
+	C.launchMatMul2D(aPtr, bPtr, cPtr, C.int(m), C.int(k), C.int(n))
 
-	// 调用 cuBLAS：C = A * B
-	m := C.int(a.Shape[0])
-	n := C.int(b.Shape[1])
-	k := C.int(a.Shape[1])
-	alpha := C.float(1.0)
-	beta := C.float(0.0)
-
-	C.cublasSgemm(handle,
-		C.CUBLAS_OP_N, C.CUBLAS_OP_N,
-		n, m, k,
-		&alpha,
-		(*C.float)(dB), n,
-		(*C.float)(dA), k,
-		&beta,
-		(*C.float)(dC), n)
-
-	// 从 GPU 拷贝回 CPU
-	out := make([]float32, int(m)*int(n))
-	C.cudaMemcpy(unsafe.Pointer(&out[0]), dC, C.size_t(sizeC), C.cudaMemcpyDeviceToHost)
-
-	// 清理资源
-	C.cudaFree(dA)
-	C.cudaFree(dB)
-	C.cudaFree(dC)
-	C.cublasDestroy_v2(handle)
-
-	return &tensor.Tensor{Data: out, Shape: []int{int(m), int(n)}, Device: "cpu"}
+	return &tensor.Tensor{Data: out, Shape: []int{m, n}, Device: "gpu"}
 }
 
-func (GPUBackend) AddBias(matrix, bias *tensor.Tensor) *tensor.Tensor {
-	// 检查输入形状是否兼容
-	if len(matrix.Shape) != 2 || len(bias.Shape) != 1 || matrix.Shape[1] != bias.Shape[0] {
-		panic("incompatible shapes for AddBias operation")
+func (GPUBackend) AddBias(mat, bias *tensor.Tensor) *tensor.Tensor {
+	rows, cols := mat.Shape[0], mat.Shape[1]
+	if bias.Shape[1] != cols {
+		panic("Bias shape mismatch")
 	}
 
-	// 创建 cuBLAS handle
-	var handle C.cublasHandle_t
-	C.cublasCreate_v2(&handle)
-	defer C.cublasDestroy_v2(handle)
+	out := make([]float32, len(mat.Data))
+	matPtr := (*C.float)(unsafe.Pointer(&mat.Data[0]))
+	biasPtr := (*C.float)(unsafe.Pointer(&bias.Data[0]))
+	outPtr := (*C.float)(unsafe.Pointer(&out[0]))
 
-	// 分配 GPU memory
-	var dMatrix, dBias unsafe.Pointer
-	matrixSize := C.size_t(len(matrix.Data) * 4)
-	biasSize := C.size_t(len(bias.Data) * 4)
+	C.launchAddBias2D(matPtr, biasPtr, outPtr, C.int(rows), C.int(cols))
 
-	C.cudaMalloc(&dMatrix, C.size_t(matrixSize))
-	defer C.cudaFree(dMatrix)
-	C.cudaMemcpy(dMatrix, unsafe.Pointer(&matrix.Data[0]), C.size_t(matrixSize), C.cudaMemcpyHostToDevice)
+	return &tensor.Tensor{Data: out, Shape: mat.Shape, Device: "gpu"}
+}
 
-	C.cudaMalloc(&dBias, C.size_t(biasSize))
-	defer C.cudaFree(dBias)
-	C.cudaMemcpy(dBias, unsafe.Pointer(&bias.Data[0]), C.size_t(biasSize), C.cudaMemcpyHostToDevice)
+func (GPUBackend) Transpose(t *tensor.Tensor) *tensor.Tensor {
+	rows, cols := t.Shape[0], t.Shape[1]
+	out := make([]float32, len(t.Data))
 
-	// 执行偏置加法: matrix += bias (broadcasted to each row)
-	m := C.int(matrix.Shape[0])
-	n := C.int(matrix.Shape[1])
-	alpha := C.float(1.0)
+	inputPtr := (*C.float)(unsafe.Pointer(&t.Data[0]))
+	outputPtr := (*C.float)(unsafe.Pointer(&out[0]))
+	C.launchTranspose2D(inputPtr, outputPtr, C.int(rows), C.int(cols))
 
-	// 对每一行执行 y = alpha * x + y
-	// 这里我们使用 cublasSaxpy 的批处理版本
-	for i := 0; i < int(m); i++ {
-		// 计算当前行的指针偏移
-		rowOffset := C.size_t(i) * C.size_t(n) * 4
-		rowPtr := unsafe.Pointer(uintptr(dMatrix) + uintptr(rowOffset))
+	return &tensor.Tensor{Data: out, Shape: []int{cols, rows}, Device: "gpu"}
+}
 
-		C.cublasSaxpy_v2(handle,
-			n,
-			&alpha,
-			(*C.float)(dBias), 1,
-			(*C.float)(rowPtr), 1)
+func (GPUBackend) Sum(t *tensor.Tensor, axis int) *tensor.Tensor {
+	rows, cols := t.Shape[0], t.Shape[1]
+	var out []float32
+	if axis == 0 {
+		out = make([]float32, cols)
+		C.launchSumAxis0((*C.float)(unsafe.Pointer(&t.Data[0])), (*C.float)(unsafe.Pointer(&out[0])), C.int(rows), C.int(cols))
+		return &tensor.Tensor{Data: out, Shape: []int{1, cols}, Device: "gpu"}
+	} else if axis == 1 {
+		out = make([]float32, rows)
+		C.launchSumAxis1((*C.float)(unsafe.Pointer(&t.Data[0])), (*C.float)(unsafe.Pointer(&out[0])), C.int(rows), C.int(cols))
+		return &tensor.Tensor{Data: out, Shape: []int{rows, 1}, Device: "gpu"}
+	} else {
+		panic("Invalid axis")
 	}
-
-	// 从 GPU 拷贝回 CPU
-	out := make([]float32, len(matrix.Data))
-	C.cudaMemcpy(unsafe.Pointer(&out[0]), dMatrix, C.size_t(matrixSize), C.cudaMemcpyDeviceToHost)
-
-	return &tensor.Tensor{Data: out, Shape: matrix.Shape, Device: "cpu"}
 }

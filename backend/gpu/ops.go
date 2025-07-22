@@ -5,7 +5,7 @@ package gpu
 #cgo CFLAGS: -I/usr/local/cuda/include
 #include <cuda_runtime.h>
 #include <cublas_v2.h>
-
+#include "../cuda/tensor_ops.h"
 void launchTranspose2D(const float* input, float* output, int rows, int cols);
 void launchSumAxis0(const float* input, float* output, int rows, int cols);
 void launchSumAxis1(const float* input, float* output, int rows, int cols);

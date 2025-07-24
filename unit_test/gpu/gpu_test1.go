@@ -1,4 +1,4 @@
-package main
+package gpu
 
 import (
 	"fmt"
@@ -33,7 +33,7 @@ func main() {
 		loss, dout, error := layer.CrossEntropy(out, y, backend)
 		if error != nil {
 			fmt.Printf("Epoch %d error: %v\n", epoch, error)
-			continue
+			continue // 跳过这轮迭代或 break 退出循环
 		}
 		net.Backward(dout)
 		op.Step(net.Layers)

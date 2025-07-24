@@ -1,11 +1,15 @@
 package gpu
 
 /*
-#cgo LDFLAGS: -L${SRCDIR}/../cuda -lloss -lcudart
+#cgo LDFLAGS: -L${SRCDIR}/../cuda -ltensor_ops -lcublas -lcudart
 #cgo CFLAGS: -I/usr/local/cuda/include
 #include <cuda_runtime.h>
-#include "../cuda/loss.h"
 #include <stdlib.h>
+void launchCategoricalCrossEntropy(const float*, const float*, float*, float*, int);
+void launchMSELoss(const float*, const float*, float*, float*, int);
+void launchMAELoss(const float*, const float*, float*, float*, int);
+void launchBinaryCrossEntropy(const float*, const float*, float*, float*, int);
+void launchSmoothL1Loss(const float*, const float*, float*, float*, int);
 */
 import "C"
 import (

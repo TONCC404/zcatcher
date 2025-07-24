@@ -1,7 +1,6 @@
 // tensor/cuda/loss.cu
 #include <cuda_runtime.h>
 #include <math.h>
-#include "loss.h"
 
 __global__ void categoricalCrossEntropyKernel(const float* pred, const float* target, float* loss, float* grad, int size) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;

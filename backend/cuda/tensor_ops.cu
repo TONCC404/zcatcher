@@ -87,4 +87,4 @@ void launchSumAxis1(const float* input, float* output, int rows, int cols) {
     int blocks = (rows + threads - 1) / threads;
     sumAxis1<<<blocks, threads>>>(input, output, rows, cols);
 }
-}
+}// extern "C"

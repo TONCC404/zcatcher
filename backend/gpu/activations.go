@@ -5,7 +5,6 @@ package gpu
 #cgo CFLAGS: -I/usr/local/cuda/include
 #include <cuda_runtime.h>
 #include <cublas_v2.h>
-#include "../cuda/activations.h"
 
 void launchSigmoid(const float* input, float* output, int n, int inplace);
 void launchTanh(const float* input, float* output, int n, int inplace);

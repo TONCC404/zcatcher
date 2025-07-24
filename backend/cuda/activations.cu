@@ -52,7 +52,7 @@ __global__ void elu_forward(const float* input, float* output, int n, float alph
     }
 }
 
-__global__ void relu_forward(const float* input, float* output, int n, int inplace) {
+__global__ void relu_forward(const float* input, float* output, unsigned char* mask, int n, int inplace) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx < n) {
         float v = input[idx];
@@ -62,6 +62,7 @@ __global__ void relu_forward(const float* input, float* output, int n, int inpla
         } else {
             output[idx] = res;
         }
+        mask[idx] = (v > 0.0f) ? 1 : 0;  
     }
 }
 

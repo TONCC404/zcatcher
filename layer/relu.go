@@ -23,6 +23,14 @@ func NewReLU(backend tensor.Backend, inplace ...bool) *ReLU {
 	}
 }
 
+func byteToBoolSlice(b []byte) []bool {
+	result := make([]bool, len(b))
+	for i, v := range b {
+		result[i] = v != 0
+	}
+	return result
+}
+
 func (r *ReLU) Forward(x *tensor.Tensor) *tensor.Tensor {
 	r.x = x
 	if r.backend.Device() == "cpu" {
@@ -47,7 +55,9 @@ func (r *ReLU) Forward(x *tensor.Tensor) *tensor.Tensor {
 	} else {
 		// GPU 版本：调用后端
 		backend := gpu.GPUBackend{}
-		return backend.ReLU(x)
+		out, mask := backend.ReLU(x)
+		r.mask = byteToBoolSlice(mask)
+		return out
 	}
 }
 

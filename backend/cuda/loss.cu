@@ -1,7 +1,7 @@
 // tensor/cuda/loss.cu
 #include <cuda_runtime.h>
 #include <math.h>
-
+extern "C" {
 __global__ void categoricalCrossEntropyKernel(const float* pred, const float* target, float* loss, float* grad, int size) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i < size) {
@@ -74,3 +74,4 @@ void launchBinaryCrossEntropy(const float* pred, const float* target, float* los
 void launchSmoothL1Loss(const float* pred, const float* target, float* loss, float* grad, int size) {
     smoothL1Kernel<<<(size + 255) / 256, 256>>>(pred, target, loss, grad, size);
 }
+}// extern "C"

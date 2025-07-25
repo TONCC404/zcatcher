@@ -1,4 +1,4 @@
-package layer
+package activations
 
 import (
 	"zcatcher/tensor"

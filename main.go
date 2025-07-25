@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"zcatcher/backend/gpu"
 	"zcatcher/layer"
+	"zcatcher/layer/activations"
 	"zcatcher/model"
 	"zcatcher/optimizer"
 	"zcatcher/tensor"
@@ -22,7 +23,7 @@ func main() {
 
 	net := model.NewSequential(
 		layer.NewLinear(2, 3, backend),
-		layer.NewReLU(backend),
+		activations.NewReLU(backend),
 		layer.NewLinear(3, 2, backend),
 	)
 

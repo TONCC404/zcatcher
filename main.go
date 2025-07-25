@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"zcatcher/backend/cpu"
+	"zcatcher/backend/gpu"
 	"zcatcher/layer"
 	"zcatcher/model"
 	"zcatcher/optimizer"
@@ -18,7 +18,7 @@ func main() {
 		0, 1,
 		1, 0,
 	}, []int{2, 2})
-	backend := cpu.NewCPUBackend()
+	backend := gpu.NewGPUBackend()
 
 	net := model.NewSequential(
 		layer.NewLinear(2, 3, backend),
@@ -30,7 +30,7 @@ func main() {
 
 	for epoch := 0; epoch < 10; epoch++ {
 		out := net.Forward(x)
-		loss, dout, error := layer.CrossEntropy(out, y, backend)
+		loss, dout, error := layer.MSE(out, y, backend)
 		if error != nil {
 			fmt.Printf("Epoch %d error: %v\n", epoch, error)
 			continue

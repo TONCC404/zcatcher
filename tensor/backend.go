@@ -6,5 +6,7 @@ type Backend interface {
 	AddBias(mat, bias *Tensor) *Tensor
 	Transpose(t *Tensor) *Tensor
 	ZeroPad(input *Tensor, padding int) *Tensor
+	Set(index []int, value float32) *Tensor
+	Slice(start, end []int) *Tensor
 	Device() string
 }

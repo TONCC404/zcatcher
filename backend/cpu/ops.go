@@ -100,3 +100,45 @@ func (CPUBackend) ZeroPad(input *tensor.Tensor, padding int) *tensor.Tensor {
 
 	return output
 }
+
+func (CPUBackend) Set(dst *tensor.Tensor, start []int, src *tensor.Tensor) {
+	if len(start) != len(dst.Shape) || len(src.Shape) != len(dst.Shape) {
+		panic("Set: dimension mismatch")
+	}
+
+	dstIndices := make([]int, len(start))
+	copy(dstIndices, start)
+	srcIndices := make([]int, len(start))
+
+	for {
+		dstOffset := offset(dst.Shape, dstIndices)
+		srcOffset := offset(src.Shape, srcIndices)
+		dst.Data[dstOffset] = src.Data[srcOffset]
+		for i := len(src.Shape) - 1; i >= 0; i-- {
+			srcIndices[i]++
+			dstIndices[i]++
+			if srcIndices[i] >= src.Shape[i] {
+				if i == 0 {
+					return
+				}
+				srcIndices[i] = 0
+				dstIndices[i] = start[i]
+			} else {
+				break
+			}
+		}
+	}
+}
+
+func offset(shape []int, indices []int) int {
+	if len(shape) != len(indices) {
+		panic("offset: index/shape length mismatch")
+	}
+	stride := 1
+	offset := 0
+	for i := len(shape) - 1; i >= 0; i-- {
+		offset += indices[i] * stride
+		stride *= shape[i]
+	}
+	return offset
+}

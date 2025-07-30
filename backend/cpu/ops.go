@@ -75,3 +75,28 @@ func (CPUBackend) AddBias(mat, bias *tensor.Tensor) *tensor.Tensor {
 	}
 	return &tensor.Tensor{Data: out, Shape: mat.Shape, Device: "cpu"}
 }
+
+func (CPUBackend) ZeroPad(input *tensor.Tensor, padding int) *tensor.Tensor {
+	batchSize := input.Shape[0]
+	channels := input.Shape[1]
+	height := input.Shape[2]
+	width := input.Shape[3]
+	outHeight := height + 2*padding
+	outWidth := width + 2*padding
+	output := tensor.NewZeros([]int{batchSize, channels, outHeight, outWidth}, input.Device)
+	for b := 0; b < batchSize; b++ {
+		for c := 0; c < channels; c++ {
+			for h := 0; h < height; h++ {
+				for w := 0; w < width; w++ {
+					inIdx := b*channels*height*width + c*height*width + h*width + w
+					outH := h + padding
+					outW := w + padding
+					outIdx := b*channels*outHeight*outWidth + c*outHeight*outWidth + outH*outWidth + outW
+					output.Data[outIdx] = input.Data[inIdx]
+				}
+			}
+		}
+	}
+
+	return output
+}

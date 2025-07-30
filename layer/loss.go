@@ -58,7 +58,6 @@ func MSE(pred, target *tensor.Tensor, backend tensor.Backend) (float32, *tensor.
 		}, nil
 
 	case "gpu":
-		// GPU implementation
 		loss, grad := gpu.MSELoss(pred, target)
 		return loss, grad, nil
 
@@ -105,7 +104,6 @@ func BinaryCrossEntropy(pred, target *tensor.Tensor, backend tensor.Backend) (fl
 	}
 	switch backend.Device() {
 	case "cpu":
-		// CPU implementation
 		loss := float32(0.0)
 		dout := make([]float32, len(pred.Data))
 		for i := 0; i < len(pred.Data); i++ {
@@ -121,7 +119,6 @@ func BinaryCrossEntropy(pred, target *tensor.Tensor, backend tensor.Backend) (fl
 		}, nil
 
 	case "gpu":
-		// GPU implementation
 		loss, grad := gpu.BinaryCrossEntropy(pred, target)
 		return loss, grad, nil
 
@@ -159,7 +156,6 @@ func SmoothL1(pred, target *tensor.Tensor, backend tensor.Backend) (float32, *te
 		}, nil
 
 	case "gpu":
-		// GPU implementation
 		loss, grad := gpu.SmoothL1Loss(pred, target)
 		return loss, grad, nil
 

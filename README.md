@@ -1,4 +1,3 @@
-zcatcher 是一个用 Go 语言实现的深度学习框架，支持 CPU 和 GPU（CUDA）后端，适用于研究和工程实践。
 # zcatcher
 
 zcatcher is a deep learning framework implemented in Go, supporting both CPU and GPU (CUDA) backends. It is suitable for research and engineering applications.

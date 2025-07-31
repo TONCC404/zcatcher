@@ -58,6 +58,58 @@ __global__ void addBias2D(const float* mat, const float* bias, float* out, int r
     }
 }
 
+__global__ void zeroPadKernel(const float* input, float* output,
+                              int B, int C, int H, int W, int padding) {
+    int b = blockIdx.z;
+    int c = blockIdx.y;
+    int h = threadIdx.y + blockIdx.x / ((W + 2*padding + 15) / 16) * 16;
+    int w = threadIdx.x + (blockIdx.x % ((W + 2*padding + 15) / 16)) * 16;
+
+    int outH = H + 2 * padding;
+    int outW = W + 2 * padding;
+
+    if (h < outH && w < outW) {
+        int outIdx = b*C*outH*outW + c*outH*outW + h*outW + w;
+        // check if in input range
+        int inH = h - padding;
+        int inW = w - padding;
+        if (inH >=0 && inH < H && inW >= 0 && inW < W) {
+            int inIdx = b*C*H*W + c*H*W + inH*W + inW;
+            output[outIdx] = input[inIdx];
+        } else {
+            output[outIdx] = 0.0f;
+        }
+    }
+}
+
+__global__ void sliceKernel(const float* input, float* output,
+                            int dims,
+                            const int* inputShape, const int* start, const int* outShape,
+                            int totalElements) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx >= totalElements) return;
+
+    // Compute multi-dimensional index in output
+    int outIdx = idx;
+    int outIndices[8]; // 支持最多8维，可扩展
+#pragma unroll
+    for (int i = dims-1; i >= 0; i--) {
+        outIndices[i] = outIdx % outShape[i];
+        outIdx /= outShape[i];
+    }
+
+    // 计算input索引 = start + outIndices
+    int inOffset = 0;
+    int stride = 1;
+    for (int i = dims-1; i >= 0; i--) {
+        int inIdx = start[i] + outIndices[i];
+        inOffset += inIdx * stride;
+        stride *= inputShape[i];
+    }
+
+    output[idx] = input[inOffset];
+}
+
 void launchMatMul2D(const float* A, const float* B, float* C, int m, int k, int n) {
     dim3 threadsPerBlock(16, 16);
     dim3 numBlocks((n + 15) / 16, (m + 15) / 16);
@@ -86,5 +138,28 @@ void launchSumAxis1(const float* input, float* output, int rows, int cols) {
     int threads = 256;
     int blocks = (rows + threads - 1) / threads;
     sumAxis1<<<blocks, threads>>>(input, output, rows, cols);
+}
+
+void launchZeroPad(const float* input, float* output,
+                   int B, int C, int H, int W, int padding) {
+    dim3 threadsPerBlock(16, 16);
+    int outH = H + 2 * padding;
+    int outW = W + 2 * padding;
+    int blocksX = (outW + 15) / 16;
+    int blocksY = (outH + 15) / 16;
+
+    // 采用 (blocksX * blocksY) 作为 blockIdx.x，blockIdx.y=c, blockIdx.z=b
+    dim3 numBlocks(blocksX * blocksY, C, B);
+
+    zeroPadKernel<<<numBlocks, threadsPerBlock>>>(input, output, B, C, H, W, padding);
+}
+
+void launchSlice(const float* input, float* output,
+                 int dims,
+                 const int* inputShape, const int* start, const int* outShape,
+                 int totalElements) {
+    int threads = 256;
+    int blocks = (totalElements + threads - 1) / threads;
+    sliceKernel<<<blocks, threads>>>(input, output, dims, inputShape, start, outShape, totalElements);
 }
 }// extern "C"

@@ -1,6 +1,7 @@
 package cpu
 
 import (
+	"fmt"
 	"zcatcher/tensor"
 )
 
@@ -111,8 +112,9 @@ func (CPUBackend) Set(dst *tensor.Tensor, start []int, src *tensor.Tensor) {
 	srcIndices := make([]int, len(start))
 
 	for {
-		dstOffset := offset(dst.Shape, dstIndices)
-		srcOffset := offset(src.Shape, srcIndices)
+		backend := CPUBackend{}
+		dstOffset := backend.Offset(dst.Shape, dstIndices)
+		srcOffset := backend.Offset(src.Shape, srcIndices)
 		dst.Data[dstOffset] = src.Data[srcOffset]
 		for i := len(src.Shape) - 1; i >= 0; i-- {
 			srcIndices[i]++
@@ -130,15 +132,81 @@ func (CPUBackend) Set(dst *tensor.Tensor, start []int, src *tensor.Tensor) {
 	}
 }
 
-func offset(shape []int, indices []int) int {
+func (CPUBackend) Offset(shape []int, indices []int) int {
 	if len(shape) != len(indices) {
-		panic("offset: index/shape length mismatch")
+		panic("Offset: shape and indices length mismatch")
 	}
-	stride := 1
 	offset := 0
+	stride := 1
 	for i := len(shape) - 1; i >= 0; i-- {
+		if indices[i] < 0 || indices[i] >= shape[i] {
+			panic(fmt.Sprintf("Offset: index %d out of bounds for axis %d", indices[i], i))
+		}
 		offset += indices[i] * stride
 		stride *= shape[i]
 	}
 	return offset
+}
+
+func (CPUBackend) Slice(t *tensor.Tensor, start []int, end []int) *tensor.Tensor {
+	if len(start) != len(t.Shape) || len(end) != len(t.Shape) {
+		panic("Slice: dimension mismatch")
+	}
+	outShape := make([]int, len(t.Shape))
+	for i := range start {
+		if start[i] < 0 || end[i] > t.Shape[i] || start[i] >= end[i] {
+			panic(fmt.Sprintf("Slice: invalid slice range on axis %d", i))
+		}
+		outShape[i] = end[i] - start[i]
+	}
+
+	out := tensor.NewZeros(outShape)
+
+	dstIndices := make([]int, len(outShape))
+	srcIndices := make([]int, len(start))
+	copy(srcIndices, start)
+
+	for {
+		backend := CPUBackend{}
+		dstOffset := backend.Offset(out.Shape, dstIndices)
+		srcOffset := backend.Offset(t.Shape, srcIndices)
+		out.Data[dstOffset] = t.Data[srcOffset]
+		for i := len(outShape) - 1; i >= 0; i-- {
+			dstIndices[i]++
+			srcIndices[i]++
+			if dstIndices[i] >= outShape[i] {
+				if i == 0 {
+					return out
+				}
+				dstIndices[i] = 0
+				srcIndices[i] = start[i]
+			} else {
+				break
+			}
+		}
+	}
+}
+
+func (CPUBackend) Reshape(t *tensor.Tensor, newShape []int) *tensor.Tensor {
+	oldSize := 1
+	for _, dim := range t.Shape {
+		oldSize *= dim
+	}
+
+	newSize := 1
+	for _, dim := range newShape {
+		if dim <= 0 {
+			panic("Reshape: invalid new shape dimension")
+		}
+		newSize *= dim
+	}
+
+	if oldSize != newSize {
+		panic("Reshape: total size mismatch")
+	}
+
+	return &tensor.Tensor{
+		Data:  t.Data,
+		Shape: append([]int(nil), newShape...), // copy newShape
+	}
 }

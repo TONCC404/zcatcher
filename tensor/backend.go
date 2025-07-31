@@ -7,6 +7,8 @@ type Backend interface {
 	Transpose(t *Tensor) *Tensor
 	ZeroPad(input *Tensor, padding int) *Tensor
 	Set(index []int, value float32) *Tensor
-	Slice(start, end []int) *Tensor
+	Slice(t *Tensor, start []int, end []int) *Tensor
+	Offset(shape []int, indices []int) int
+	Reshape(t *Tensor, newShape []int) *Tensor
 	Device() string
 }

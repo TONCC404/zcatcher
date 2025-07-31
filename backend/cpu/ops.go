@@ -102,34 +102,22 @@ func (CPUBackend) ZeroPad(input *tensor.Tensor, padding int) *tensor.Tensor {
 	return output
 }
 
-func (CPUBackend) Set(dst *tensor.Tensor, start []int, src *tensor.Tensor) {
-	if len(start) != len(dst.Shape) || len(src.Shape) != len(dst.Shape) {
+func (CPUBackend) Get(t *tensor.Tensor, indices ...int) float32 {
+	if len(indices) != len(t.Shape) {
+		panic("Get: dimension mismatch")
+	}
+	backend := CPUBackend{}
+	offset := backend.Offset(t.Shape, indices)
+	return t.Data[offset]
+}
+
+func (CPUBackend) Set(t *tensor.Tensor, value float32, indices ...int) {
+	if len(indices) != len(t.Shape) {
 		panic("Set: dimension mismatch")
 	}
-
-	dstIndices := make([]int, len(start))
-	copy(dstIndices, start)
-	srcIndices := make([]int, len(start))
-
-	for {
-		backend := CPUBackend{}
-		dstOffset := backend.Offset(dst.Shape, dstIndices)
-		srcOffset := backend.Offset(src.Shape, srcIndices)
-		dst.Data[dstOffset] = src.Data[srcOffset]
-		for i := len(src.Shape) - 1; i >= 0; i-- {
-			srcIndices[i]++
-			dstIndices[i]++
-			if srcIndices[i] >= src.Shape[i] {
-				if i == 0 {
-					return
-				}
-				srcIndices[i] = 0
-				dstIndices[i] = start[i]
-			} else {
-				break
-			}
-		}
-	}
+	backend := CPUBackend{}
+	offset := backend.Offset(t.Shape, indices)
+	t.Data[offset] = value
 }
 
 func (CPUBackend) Offset(shape []int, indices []int) int {

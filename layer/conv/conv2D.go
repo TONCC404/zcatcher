@@ -6,10 +6,12 @@ import (
 )
 
 type Conv2D struct {
-	Filters *tensor.Tensor
-	Bias    *tensor.Tensor
-	Stride  int
-	Padding int
+	Filters     *tensor.Tensor
+	Bias        *tensor.Tensor
+	Stride      int
+	Padding     int
+	KernelSize  int
+	OutChannels int
 }
 
 func NewConv2D(inChannels, outChannels, kernelSize, stride, padding int, backend tensor.Backend) *Conv2D {
@@ -82,7 +84,7 @@ func (c *Conv2D) Forward(input *tensor.Tensor, backend tensor.Backend) (*tensor.
 	return output, nil
 }
 
-func (c *Conv2D) Backward(input *tensor.Tensor, gradOutput *tensor.Tensor) (*tensor.Tensor, *tensor.Tensor, *tensor.Tensor) {
+func (c *Conv2D) Backward(input *tensor.Tensor, gradOutput *tensor.Tensor, backend tensor.Backend) (*tensor.Tensor, *tensor.Tensor, *tensor.Tensor) {
 	batchSize := input.Shape[0]
 	inChannels := input.Shape[1]
 	inHeight := input.Shape[2]
@@ -94,7 +96,7 @@ func (c *Conv2D) Backward(input *tensor.Tensor, gradOutput *tensor.Tensor) (*ten
 	outChannels := c.OutChannels
 
 	// Padding input and prepare gradInput
-	paddedInput := c.Backend.ZeroPad(input, padding)
+	paddedInput := backend.ZeroPad(input, padding)
 	gradPaddedInput := tensor.NewZeros(paddedInput.Shape)
 
 	gradFilters := tensor.NewZeros(c.Filters.Shape) // [outChannels, inChannels, kH, kW]
@@ -107,24 +109,24 @@ func (c *Conv2D) Backward(input *tensor.Tensor, gradOutput *tensor.Tensor) (*ten
 		for oc := 0; oc < outChannels; oc++ {
 			for oh := 0; oh < outHeight; oh++ {
 				for ow := 0; ow < outWidth; ow++ {
-					dout := gradOutput.Get(b, oc, oh, ow)
-					gradBias.Set(gradBias.Get(oc)+dout, oc)
+					dout := backend.Get(gradOutput, b, oc, oh, ow)
+					backend.Set(gradBias, backend.Get(gradBias, oc)+dout, oc)
 
 					for ic := 0; ic < inChannels; ic++ {
 						for kh := 0; kh < kernelSize; kh++ {
 							for kw := 0; kw < kernelSize; kw++ {
 								inH := oh*stride + kh
 								inW := ow*stride + kw
-								inVal := paddedInput.Get(b, ic, inH, inW)
+								inVal := backend.Get(paddedInput, b, ic, inH, inW)
 
 								// grad wrt filter
-								old := gradFilters.Get(oc, ic, kh, kw)
-								gradFilters.Set(old+inVal*dout, oc, ic, kh, kw)
+								old := backend.Get(gradFilters, oc, ic, kh, kw)
+								backend.Set(gradFilters, old+inVal*dout, oc, ic, kh, kw)
 
 								// grad wrt input
-								weight := c.Filters.Get(oc, ic, kh, kw)
-								oldGrad := gradPaddedInput.Get(b, ic, inH, inW)
-								gradPaddedInput.Set(oldGrad+weight*dout, b, ic, inH, inW)
+								weight := backend.Get(c.Filters, oc, ic, kh, kw)
+								oldGrad := backend.Get(gradPaddedInput, b, ic, inH, inW)
+								backend.Set(gradPaddedInput, oldGrad+weight*dout, b, ic, inH, inW)
 							}
 						}
 					}
@@ -134,7 +136,7 @@ func (c *Conv2D) Backward(input *tensor.Tensor, gradOutput *tensor.Tensor) (*ten
 	}
 
 	// Unpad gradInput to match input shape
-	gradInput := c.Backend.Slice(gradPaddedInput,
+	gradInput := backend.Slice(gradPaddedInput,
 		[]int{0, 0, padding, padding},
 		[]int{batchSize, inChannels, padding + inHeight, padding + inWidth},
 	)

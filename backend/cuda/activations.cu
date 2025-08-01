@@ -131,10 +131,10 @@ void launchELU(const float* input, float* output, int n, float alpha, int inplac
     elu_forward<<<blocks, threads>>>(input, output, n, alpha, inplace);
 }
 
-void launchReLU(const float* input, float* output, int n, int inplace) {
+void launchReLU(const float* input, float* output, unsigned char* mask, int n, int inplace) { 
     int threads = 256;
     int blocks = (n + threads - 1) / threads;
-    relu_forward<<<blocks, threads>>>(input, output, n, inplace);
+    relu_forward<<<blocks, threads>>>(input, output, mask, n, inplace);
 }
 
 void launchSigmoidBackward(const float* output, const float* grad_output, float* grad_input, int n) {

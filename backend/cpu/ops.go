@@ -198,3 +198,20 @@ func (CPUBackend) Reshape(t *tensor.Tensor, newShape []int) *tensor.Tensor {
 		Shape: append([]int(nil), newShape...), // copy newShape
 	}
 }
+
+func (CPUBackend) Clone(t *tensor.Tensor) *tensor.Tensor {
+	dataCopy := make([]float32, len(t.Data))
+	copy(dataCopy, t.Data)
+
+	var maskCopy []byte
+	if t.Mask != nil {
+		maskCopy = make([]byte, len(t.Mask))
+		copy(maskCopy, t.Mask)
+	}
+
+	return &tensor.Tensor{
+		Shape: append([]int(nil), t.Shape...), // deep copy of shape
+		Data:  dataCopy,
+		Mask:  maskCopy,
+	}
+}

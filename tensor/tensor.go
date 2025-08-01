@@ -13,6 +13,7 @@ type Tensor struct {
 	// 可选设备标签：cpu / gpu
 	Device string
 	gpuPtr unsafe.Pointer
+	Mask   []byte
 }
 
 func NewTensor(data []float32, shape []int, device ...string) *Tensor {

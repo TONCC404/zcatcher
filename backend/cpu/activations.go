@@ -5,15 +5,19 @@ import (
 	"zcatcher/tensor"
 )
 
-func maybeAlloc(input *tensor.Tensor, inplace bool) *tensor.Tensor {
+type Mask struct {
+	Data []byte
+}
+
+func (b CPUBackend) maybeAlloc(input *tensor.Tensor, inplace bool) *tensor.Tensor {
 	if inplace {
 		return input
 	}
-	return input.Clone()
+	return b.Clone(input)
 }
 
 func (b CPUBackend) ReLU(input *tensor.Tensor, inplace bool) *tensor.Tensor {
-	out := maybeAlloc(input, inplace)
+	out := b.maybeAlloc(input, inplace)
 	mask := make([]byte, len(input.Data))
 
 	for i, v := range input.Data {
@@ -30,7 +34,7 @@ func (b CPUBackend) ReLU(input *tensor.Tensor, inplace bool) *tensor.Tensor {
 }
 
 func (b CPUBackend) ReLUBackward(gradOutput *tensor.Tensor, mask *Mask) *tensor.Tensor {
-	gradInput := gradOutput.Clone()
+	gradInput := b.Clone(gradOutput)
 	for i := range gradOutput.Data {
 		if mask.Data[i] == 0 {
 			gradInput.Data[i] = 0
@@ -40,7 +44,7 @@ func (b CPUBackend) ReLUBackward(gradOutput *tensor.Tensor, mask *Mask) *tensor.
 }
 
 func (b CPUBackend) Sigmoid(input *tensor.Tensor, inplace bool) *tensor.Tensor {
-	out := maybeAlloc(input, inplace)
+	out := b.maybeAlloc(input, inplace)
 	for i, v := range input.Data {
 		out.Data[i] = 1.0 / (1.0 + float32(math.Exp(-float64(v))))
 	}
@@ -48,7 +52,7 @@ func (b CPUBackend) Sigmoid(input *tensor.Tensor, inplace bool) *tensor.Tensor {
 }
 
 func (b CPUBackend) SigmoidBackward(output, gradOutput *tensor.Tensor) *tensor.Tensor {
-	gradInput := NewTensorLike(output)
+	gradInput := tensor.NewZeros(output.Shape, "cpu")
 	for i := range output.Data {
 		y := output.Data[i]
 		gradInput.Data[i] = gradOutput.Data[i] * y * (1 - y)
@@ -58,7 +62,7 @@ func (b CPUBackend) SigmoidBackward(output, gradOutput *tensor.Tensor) *tensor.T
 
 // Tanh
 func (b CPUBackend) Tanh(input *tensor.Tensor, inplace bool) *tensor.Tensor {
-	out := maybeAlloc(input, inplace)
+	out := b.maybeAlloc(input, inplace)
 	for i, v := range input.Data {
 		out.Data[i] = float32(math.Tanh(float64(v)))
 	}
@@ -66,7 +70,7 @@ func (b CPUBackend) Tanh(input *tensor.Tensor, inplace bool) *tensor.Tensor {
 }
 
 func (b CPUBackend) TanhBackward(output, gradOutput *tensor.Tensor) *tensor.Tensor {
-	gradInput := NewTensorLike(output)
+	gradInput := tensor.NewZeros(output.Shape, "cpu")
 	for i, y := range output.Data {
 		gradInput.Data[i] = gradOutput.Data[i] * (1 - y*y)
 	}
@@ -75,7 +79,7 @@ func (b CPUBackend) TanhBackward(output, gradOutput *tensor.Tensor) *tensor.Tens
 
 // LeakyReLU
 func (b CPUBackend) LeakyReLU(input *tensor.Tensor, alpha float32, inplace bool) *tensor.Tensor {
-	out := maybeAlloc(input, inplace)
+	out := b.maybeAlloc(input, inplace)
 	for i, v := range input.Data {
 		if v > 0 {
 			out.Data[i] = v
@@ -87,7 +91,7 @@ func (b CPUBackend) LeakyReLU(input *tensor.Tensor, alpha float32, inplace bool)
 }
 
 func (b CPUBackend) LeakyReLUBackward(input, gradOutput *tensor.Tensor, alpha float32) *tensor.Tensor {
-	gradInput := NewTensorLike(input)
+	gradInput := tensor.NewZeros(input.Shape, "cpu")
 	for i, v := range input.Data {
 		if v > 0 {
 			gradInput.Data[i] = gradOutput.Data[i]
@@ -100,7 +104,7 @@ func (b CPUBackend) LeakyReLUBackward(input, gradOutput *tensor.Tensor, alpha fl
 
 // ELU
 func (b CPUBackend) ELU(input *tensor.Tensor, alpha float32, inplace bool) *tensor.Tensor {
-	out := maybeAlloc(input, inplace)
+	out := b.maybeAlloc(input, inplace)
 	for i, v := range input.Data {
 		if v > 0 {
 			out.Data[i] = v
@@ -112,7 +116,7 @@ func (b CPUBackend) ELU(input *tensor.Tensor, alpha float32, inplace bool) *tens
 }
 
 func (b CPUBackend) ELUBackward(input, gradOutput *tensor.Tensor, alpha float32) *tensor.Tensor {
-	gradInput := NewTensorLike(input)
+	gradInput := tensor.NewZeros(input.Shape, "cpu")
 	for i, v := range input.Data {
 		if v > 0 {
 			gradInput.Data[i] = gradOutput.Data[i]
